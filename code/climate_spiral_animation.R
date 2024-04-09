@@ -106,7 +106,7 @@ a <- t_data %>%
 
   #transition_reveal(along = step_number)
 
- animate(a, width=4.5, height=4.5, units="in", res=300
+ animate(a, width=4.2, height=4.49, units="in", res=300
 #         #nframes = nrow(t_data),
 #         #fps = nrow(t_data)/12/60/60
          )
