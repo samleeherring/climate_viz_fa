@@ -67,10 +67,10 @@ a <- t_data %>%
              color ="white", fill = "black",
              label.padding = unit(20, "pt"),
              label.size = 0, size = 6)+
-  geom_line()+
   geom_point(data = annotation, aes(x=month_number, y=t_diff, color=year),
              size =2,
              inherit.aes = FALSE)+
+  geom_line()+
   scale_x_continuous(breaks=1:12,
                      labels = month.abb,
                      sec.axis = dup_axis(name = NULL, labels = NULL))+
@@ -91,11 +91,11 @@ a <- t_data %>%
   
   theme(
     plot.background = element_rect(fill = "#444444", color = "#444444"),
-    panel.background = element_rect(fill = "#444444", size=1),
+    panel.background = element_rect(fill = "#444444"),
     panel.grid = element_blank(),
     plot.title = element_text(color = "white", hjust = 0.5, size = 15),
     axis.text = element_blank(),
-    axis.title = element_text(color="white", size=13),
+    #axis.title = element_text(color="white", size=13),
     axis.text.y = element_blank(),
     axis.ticks = element_blank(),
   )+
@@ -106,13 +106,17 @@ a <- t_data %>%
 
   #transition_reveal(along = step_number)
 
-animate(a, width=4.155, height=4.5, unit="in", res=300,
-        #nframes = nrow(t_data),
-        #fps = nrow(t_data)/12/60/60
-        )
+ animate(a, width=4.5, height=4.5, units="in", res=300
+#         #nframes = nrow(t_data),
+#         #fps = nrow(t_data)/12/60/60
+         )
+
+#animate(a)
 
 anim_save("figures/climate_spiral_animation.gif")
 
-
+## Need to figure out a couple of things:
+## 1) make the final point the last frame of animation
+## 2) learn to navigate fps and nframes so I don't get errors
 
   

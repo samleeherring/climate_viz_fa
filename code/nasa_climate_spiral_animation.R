@@ -103,8 +103,7 @@ a <- t_data %>%
 ## also changed from step_number to year
 
 
-animate(a
-        #, width=4.155, height=4.5, unit="in", res=300,
+animate(a, width=4.5, height=4.5, units="in", res=300,
         #nframes = nrow(t_data),
         #fps = nrow(t_data)/12/60/60
 )
