@@ -11,11 +11,6 @@ t_diff <- read_csv("data/GLB.Ts+dSST.csv", skip=1, na="***")%>%
   pivot_longer(-year, names_to="month", values_to="t_diff") %>%
   drop_na()
 
-# last_dec <- t_diff %>%
-#   filter(month == "Dec") %>%
-#   mutate(year = year + 1,
-#          month = "last_Dec")
-# 
 next_jan <-t_diff %>%
   filter(month == "Jan") %>%
   mutate(year = year - 1,
@@ -29,90 +24,92 @@ t_data <- bind_rows(t_diff, next_jan) %>%
          month_number = as.numeric(month)) %>%
   arrange(year, month) %>%
   filter(year != 1879) %>%
-mutate(step_number = 1:nrow(.))
-  
+  mutate(step_number = 1:nrow(.))
+
 annotation <- t_data %>%
   slice_max(year) %>%
   slice_max(month_number)
 
 temp_lines <- tibble(
-  x = 12,
-  y = c(1.5, 2.0),
-  labels = c("1.5\u00B0C", "2.0\u00B0C")
+  x = 1,
+  y = c(1, 0, -1),
+  labels = c("+1\u00B0C", "0\u00B0C", "-1\u00B0C")
 )
 
 month_labels <- tibble(
   x = 1:12,
-  labels = month.abb,
-  y = 2.7
+  labels = toupper(month.abb),
+  y = 1.5
 )
-  
-t_data %>%
-  ggplot(aes(x=month_number, y=t_diff, group=year, color=year))+
-  geom_hline(yintercept = c(1.5, 2.0), color="red")+
-  geom_label(data = temp_lines, aes(x=x, y=y, label=labels),
-             color = "red", label.size = 0, size = 3.5,
-             inherit.aes = FALSE)+
-  geom_text(data = month_labels, aes(x=x, y=y, label=labels),
-          color = "white",
-          inherit.aes = FALSE,
-          angle = seq(360 - 360/12, 0, length.out =12))+
-  geom_label(aes(x =1, y=-1.3, label = year),
-             color ="white", fill = "black",
-             label.size = 0, size = 6)+
-  geom_line()+
+
+gridlines <- tibble(
+  x = c(1.3, 1.3, 1.5),
+  xend = c(12.7, 12.7, 12.5),
+  y = c(1, 0, -1),
+  yend = y
+)
+
+a <- t_data %>%
+  ggplot(aes(x=month_number, y=t_diff, group=year, color=t_diff))+
+  geom_label(aes(x =1, y=-1.7, label = year),
+             fill = "black", label.size = 0, size = 6)+
   geom_point(data = annotation, aes(x=month_number, y=t_diff, color=year),
              size =2,
              inherit.aes = FALSE)+
-  scale_x_continuous(breaks=1:12,
-                     labels = month.abb,
-                     sec.axis = dup_axis(name = NULL, labels = NULL))+
-  scale_y_continuous(breaks = seq(-2, 2, 0.2),
-                     limits = c(-2, 3.0), expand = c(0, -0.7),
-                     sec.axis = dup_axis(name = NULL, labels = NULL))+
-  # scale_size_manual(breaks = c(FALSE, TRUE),
-  #                   values = c(0.25, 1), guide = "none")+
-  scale_color_viridis_c(breaks = seq(1850, 2024, 20),
-                        guide = "none")+
-  coord_polar(start = 2*pi/12)+
+  geom_line()+
+  geom_segment(data = gridlines, aes(x=x, y=y, xend=xend, yend=yend),
+               color=c("yellow", "green", "yellow"), size=0.8,
+               inherit.aes = FALSE)+
+  geom_text(data = temp_lines, aes(x=x, y=y, label=labels),
+             color = c("yellow", "green", "yellow"), size=2.3, fontface="bold",
+             inherit.aes = FALSE)+
+  geom_text(data = month_labels, aes(x=x, y=y, label=labels),
+            color = "yellow",
+            inherit.aes = FALSE)+
+  
+  scale_y_continuous(limits = c(-2.0, 1.5),
+                     expand = c(0, -0.3))+
+  scale_color_gradient2(
+    low="blue", mid="white", high="red", midpoint=0,
+    guide="none", limits=c(-1, 1.5)
+    )+
+  ## For some reason, scale_color_gradient2() is only taking the mid color argument
+  ## Figured it out (on my own too, wowww) have to set closer equidistant limits
+  
+  coord_polar(start = 0)+
   
   labs(
     x = element_blank(),
     y = element_blank(),
-    title = "Global temperature change (1850-2024)"
+    title = NULL
   )+
   
   theme(
-    plot.background = element_rect(fill = "#444444", color = "#444444"),
-    panel.background = element_rect(fill = "#444444", size=1),
+    plot.background = element_rect(fill = "black", color = "black"),
+    panel.background = element_rect(fill = "black", size=1),
     panel.grid = element_blank(),
-    plot.title = element_text(color = "white", hjust = 0.5, size = 15),
+    plot.title = element_blank(),
     axis.text = element_blank(),
-    axis.title = element_text(color="white", size=13),
     axis.text.y = element_blank(),
     axis.ticks = element_blank(),
-  )
+    legend.background = element_blank(),
+    legend.key = element_blank()
+  )+
+  transition_manual(frames = year, cumulative = TRUE)
+
+#ggsave("figures/nasa_climate_spiral.png")
   
-#   transition_manual(frames = year, cumulative = TRUE)
+## changed from transition_reveal and action from 'along' to counter easing
+## also changed from step_number to year
 
-ggsave("figures/nasa_climate_spiral_animation.png", width=4.155, height=4.5, unit="in", dpi=300)
 
-# ## changed from transition_reveal and action from along to counter easing
-# ## also changed from step_number to year
-# 
-#   #transition_reveal(along = step_number)
-# 
-# # animate(a, width=4.155, height=4.5, unit="in", res=300
-# #         #nframes = nrow(t_data),
-# #         #fps = nrow(t_data)/12/60/60
-# #         )
-# 
-# animate(a)
-# 
-# anim_save("figures/climate_spiral_animation.gif")
-# 
-# ## Need to figure out a couple of things:
-# ## 1) make the final point the last frame of animation
-# ## 2) learn to navigate fps and nframes so I don't get errors
-# 
-#   
+animate(a
+        #, width=4.155, height=4.5, unit="in", res=300,
+        #nframes = nrow(t_data),
+        #fps = nrow(t_data)/12/60/60
+)
+
+anim_save("figures/nasa_climate_spiral_animation.gif")
+
+
+
