@@ -5,10 +5,10 @@ library(data.table)
 library(lubridate)
 library(ggridges)
 
-
-url <- "https://data.giss.nasa.gov/pub/gistemp/gistemp250_GHCNv4.nc.gz"
-download.file(url, destfile = "gistemp250_GHCNv4.nc.gz")
-gunzip("gistemp250_GHCNv4.nc.gz")
+## Run only once then comment out
+# url <- "https://data.giss.nasa.gov/pub/gistemp/gistemp250_GHCNv4.nc.gz"
+# download.file(url, destfile = "gistemp250_GHCNv4.nc.gz")
+# gunzip("gistemp250_GHCNv4.nc.gz")
 
 nc_data <- nc_open("gistemp250_GHCNv4.nc")
 # Save the print(nc) dump to a text file
