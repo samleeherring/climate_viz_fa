@@ -23,10 +23,10 @@ lat <- ncvar_get(nc_data, "lat", verbose = F)
 t <- ncvar_get(nc_data, "time")
 
 t_anomaly.array <- ncvar_get(nc_data, "tempanomaly") # store the data in a 3-dimensional array
-dim(ndvi.array) 
+dim(t_anomaly.array) 
 
 fillvalue <- ncatt_get(nc_data, "tempanomaly", "_FillValue")
-t_anomaly.array[ndvi.array == fillvalue$value] <- NA
+t_anomaly.array[t_anomaly.array == fillvalue$value] <- NA
 
 t_data <- as.data.table(t_anomaly.array) %>%
   as_tibble() %>%
