@@ -32,7 +32,7 @@ zone_data %>%
   labs(
     x = "Temperature anomaly (\u00B0C)",
     y = NULL,
-    title = "Variation in annual temperature anomaly by \n lattitude (1880-2024",
+    title = "Variation in annual temperature anomaly by latitude \n (1880-2024)",
     subtitle = "Bars for 2023 are colored by the size of the anomaly"
   ) +
   
@@ -54,4 +54,4 @@ zone_data %>%
     axis.line.y = element_blank()
   )
 
-ggsave("figures/lattitude_anomaly.png", width = 6, height = 5, units = "in")
+ggsave("figures/latitude_anomaly.png", width = 6, height = 5, units = "in")
