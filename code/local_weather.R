@@ -50,6 +50,10 @@ local_weather <- read_csv(station_daily,
          PRCP = PRCP/10) %>%
   rename_all(tolower)
 
+local_weather_scaled <- local_weather  %>%
+  mutate(tmax = if_else(tmax == 0, NA_real_, tmax)) %>%
+  drop_na()
+
 #dataframe for finding the avg prcp during the wet season (Nov-Mar)
 wet_season <- local_weather %>%
   select(date, prcp) %>%
