@@ -1,15 +1,22 @@
+## READ.ME
+## How this should work: 1 segment from each of the 8 bands should appear at the
+## corresponding x-axis value for 2 frames and then disappear, leaving behind a
+## smaller transparent segment before moving onto the next year's temp anomaly
+## value so that we can see how they trend over time.
+
 library(tidyverse)
 library(scales)
 library(glue)
 library(gganimate)
 library(gifski)
 
+## Latitude zones to be mapped
 bands <- rev(c("64N-90N", "44N-64N", "24N-44N", "EQU-24N",
            "24S-EQU", "44S-24S", "64S-44S", "90S-64S"))
 
 url <- "https://data.giss.nasa.gov/gistemp/tabledata_v4/ZonAnn.Ts+dSST.csv"
 
-
+## Pulling all data needed from NASA site
 zone_data <- read_csv(url) %>%
   select(year = Year, all_of(bands)) %>%
   pivot_longer(-year, names_to = "zone", values_to = "t_diff") %>%
@@ -17,8 +24,9 @@ zone_data <- read_csv(url) %>%
          zone_position = as.numeric(zone)) %>%
   mutate(rows = 1:nrow(.))
 
-last_year <- zone_data %>%
-  filter(year == 2023)
+## This was for an initial test, but I don't need it anymore
+# last_year <- zone_data %>%
+#   filter(year == 2023)
 
 ## Creating a column to list the years numerically for the animation
 current_year <- zone_data %>%
@@ -38,36 +46,59 @@ factor_8 <- left_join(zone_data, year_nums, by = intersect('year', 'year'),
                        relationship = 'many-to-many')
 
 ## FINAL DATA FRAME 
+
 anim_df <- factor_8[!duplicated(factor_8$rows),] %>%
   arrange(year, zone, t_diff, zone_position, year_number, rows) %>%
-  mutate(tail = last(as.integer(year_number) - as.integer(year_number)),
-         # Make the lines solid for 1 frame then alpha 0.3
-         shade_alpha = if_else(tail == 0, 1, 0.3),
-         # Make the lines fade out over 20 frames
-         segment_alpha = pmax(0, (20-tail)/20)) %>%
-  ungroup()
+  mutate(year_number = as.integer(year_number))
+## Changing the year_number column to integer format in this DF as opposed to 
+## below made it so that the fading alpha points actually functioned LET'S GOOO
 
+
+## Ok for real final data frame stg
+
+send_it <- anim_df %>%
+  uncount(144, .id = "frame") %>%
+  filter(year_number <= frame) %>%
+  arrange(frame, year_number) %>%
+  group_by(frame) %>%
+  mutate(tail = last(year_number) - year_number,
+         # Make the lines solid for 1 frame then alpha 0.3
+         shade_alpha = if_else(tail == 0, 1, 0.35),
+         # Make the lines fade out over 20 frames
+         segment_alpha = pmax(0, (2-tail)/2)) %>%
+  ungroup() 
 ## This was my original row counter, but I had to move it up for the join
 # %>% mutate(step_number = 1:nrow(.))
+
+## Shoutout Jon Spring 6851825 from StackOverflow for the uncount & alpha f()
+
+## purveying the goods
+send_it %>%
+  select(year, zone, t_diff, frame, tail, shade_alpha, segment_alpha) %>% tail
    
 
-a <- anim_df %>%
+a <- send_it %>%
   ggplot(aes(x = t_diff, xend = t_diff,
              y = zone_position - 0.25, yend = zone_position + 0.25,
              group = year_number))+
-  geom_segment(aes(color = t_diff), linewidth = 2,
-               lineend = "round", show.legend = FALSE) +
-  # exit_disappear(early = FALSE) +
-  scale_alpha(range = c(0,1)) +
+  geom_segment(aes(color = t_diff, alpha = segment_alpha), linewidth = 2,
+               lineend = "round",
+               show.legend = FALSE) +
+  geom_segment(aes(x = t_diff, xend = t_diff, y = zone_position - 0.25,
+                   yend = zone_position + 0.25, group = year_number,
+                   color = t_diff, alpha = shade_alpha),
+               linewidth = 1.5, show.legend = FALSE, inherit.aes = FALSE) +
   # geom_segment(data = last_year,
   #              aes(color = t_diff), linewidth = 2, lineend = "round") +
+
+  scale_alpha(range = c(0,1)) +
   scale_y_continuous(breaks = 1:8,
                      labels = bands) +
   scale_x_continuous(breaks = seq(-3, 4, 1),
                      labels = seq(-3, 4, 1),
                      limits = c(-3, 4)) +
-  scale_color_gradient2(low = "darkblue", mid = "white", high = "darkred",
-                        midpoint = 0, guide = "none") +
+  scale_color_gradient2(low = "dodgerblue", mid = "white", high = "red",
+                        midpoint = 0, limits = c(-2.7, 3.3), guide = "none") +
 
   labs(
     x = "Temperature anomaly (\u00B0C)",
@@ -95,14 +126,7 @@ a <- anim_df %>%
     legend.text = element_blank(),
     legend.title = element_blank()
   ) +
-transition_manual(frames = year_number, cumulative = FALSE)
-
-
-# aa <- a +
-#   geom_segment(aes(color = t_diff, alpha = shade_alpha),
-#                linewidth = 1) +
-#   transition_manual(frames = year_number, cumulative = TRUE)
-
+  transition_manual(frame) 
 
 # ggsave("figures/latitude_anomaly.png", width = 6, height = 5, units = "in")
 
@@ -111,3 +135,51 @@ animate(a, width=6, height=6, units="in", res = 300)
 anim_save("figures/latitude_anomaly_animation.gif")
 
 
+
+## Here's all of my failed attempts to get the animation how I wanted lol
+
+## gganimate transitions & behaviors, literally never even got to see them work
+# shadow_mark(alpha = alpha/3, past = TRUE, future = FALSE) +
+# enter_fade() +
+# enter_grow() +
+# exit_disappear(early = FALSE) +
+
+## subsetting data frames in an attempt to create layers?
+# ghosts = a +
+#   geom_segment(aes(color = t_diff, alpha = shade_alpha),
+#                linewidth = 1) +
+#   transition_manual(frames = year_number, cumulative = TRUE)
+# 
+# monsters = a +
+#   geom_segment(aes(color = t_diff),
+#                linewidth = 2, lineend = "round",
+#                show.legend = FALSE) +
+#   transition_manual(frames = year_number, cumulative = FALSE)
+  
+## Attempting to fuse layers + have them behave differently
+# aa <- ghosts +
+#   monsters +
+#   # transition_manual(frames = year_number, cumulative = TRUE) +
+#   transition_layers(layer_length = 1, transition_length = 2,
+#                     from_blank = FALSE, keep_layers = c(Inf, 0)) 
+#   # shadow_mark(past = TRUE, future = FALSE)
+# animate(aa)
+
+# a +
+#   geom_segment(aes(x = t_diff, xend = t_diff,
+#                    y = zone_position - 0.25, yend = zone_position + 0.25,
+#                    color = t_diff), linewidth = 2, lineend = "round",
+#                show.legend = FALSE, inherit.aes = FALSE) +
+#   # exit_disappear(early = FALSE) + doesn't seem to make a difference
+#   shadow_mark(past = TRUE, future = FALSE, exclude_layer = NULL) +
+#   transition_manual(frames = year_number, cumulative = FALSE)
+
+# aa = a +
+#   geom_segment(aes(color = t_diff), linewidth = 2, lineend = "round",
+#                show.legend = FALSE) +
+#   exit_disappear()
+# 
+# animate(aa)
+
+
+## Welp, we got there eventually lmao
