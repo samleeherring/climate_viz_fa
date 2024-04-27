@@ -141,9 +141,6 @@ today_date <- ymd(glue("2024-{today_month}-{today_day}"))
 today_pretty <- today_date %>%
   format.Date(format = '%B %dth %Y')
 
-ann_text <- data.frame(x = today_date, mean_prcp = 7,lab = "Text",
-                       names = factor(8,levels = c("4","6","8")))
-geom_text(data = ann_text,label = "Text") +
 
 b <- local_weather %>%
   select(date, prcp) %>%
