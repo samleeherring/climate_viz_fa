@@ -41,8 +41,7 @@ local_weather <- read_csv(station_daily,
                       col_names = c("station_id", "date", "element", "value", "m_flag", 
                                     "q_flag", "s_flag", "time")) %>%
   select(date, element, value) %>%
-  pivot_wider(names_from = "element", values_from = "value",
-              values_fill = 0) %>%
+  pivot_wider(names_from = "element", values_from = "value") %>%
   select(date, TMAX, TMIN, PRCP, SNWD) %>%
   mutate(date = ymd(date),
          TMAX = TMAX /10,
@@ -76,7 +75,7 @@ dry_season <- local_weather %>%
          prcp > 0) ## avg = 6.3mm
   
 
-local_weather %>%
+local_weather %>% 
   ggplot(aes(x = date, y = prcp)) +
   geom_line(color = "darkgreen") +
   geom_smooth(data = wet_season,
@@ -123,5 +122,83 @@ local_weather %>%
 ## of government strikes at the time... will investigate
 
 ggsave("figures/local_weather.png", width=7, height=4, units = "in")
+
+
+## Gonna try some more plotting exercises since I went through all the trouble
+## of finding this data
+
+
+## Faceted plots to show probability of rain by date, avg amount of prcp by date,
+## average amount of expected prcp if there is to be any
+
+pretty_labels <- c('prob_prcp' = 'Probability of precipitation',
+                   'mean_prcp' = 'Average amount of\nprecipitation by day (mm)',
+                   'mean_event' = 'Average amount of\nprecipitation by event (mm)')
+
+today_month <- month(today())
+today_day <- day(today())
+today_date <- ymd(glue("2024-{today_month}-{today_day}"))
+today_pretty <- today_date %>%
+  format.Date(format = '%B %dth %Y')
+
+ann_text <- data.frame(x = today_date, mean_prcp = 7,lab = "Text",
+                       names = factor(8,levels = c("4","6","8")))
+geom_text(data = ann_text,label = "Text") +
+
+b <- local_weather %>%
+  select(date, prcp) %>%
+  mutate(year = year(date),
+         month = month(date),
+         day = day(date)) %>%
+  drop_na(prcp) %>%
+  group_by(month, day) %>%
+  summarise(prob_prcp = mean(prcp > 0)*100,
+            mean_prcp = mean(prcp),
+            mean_event = mean(prcp[prcp > 0]),
+            .groups = 'drop') %>%
+  mutate(date = ymd(glue('2024-{month}-{day}'))) %>%
+  pivot_longer(cols = c(prob_prcp, mean_prcp, mean_event)) %>%
+  mutate(name = factor(name, levels = c('prob_prcp', 'mean_prcp', 'mean_event'))) %>%
+  
+  
+  ggplot(aes(x = date, y = value, label = today_date)) +
+  geom_line() +
+  # geom_hline(yintercept = 0) +
+  geom_vline(color = 'red', xintercept = today_date, linewidth = 1) +
+  geom_smooth(se=FALSE) +
+  facet_wrap(~name, ncol = 1, scales = 'free_y', strip.position = 'left', 
+             labeller = labeller(name = pretty_labels)) +
+  scale_y_continuous(limits = c(0, NA), expand = c(0,0)) + 
+  scale_x_date(date_breaks = '2 months',
+               date_labels = '%B', expand = c(0,0)) +
+  coord_cartesian(clip = 'off') +
+  
+  labs(
+    x = NULL,
+    y = NULL
+    ) +
+  
+  theme(
+    strip.placement = 'outside',
+    strip.background = element_blank(),
+    panel.background = element_blank(),
+    panel.grid = element_blank(),
+    axis.line = element_line(),
+    plot.margin = margin(10,5,10,5),
+    panel.spacing = unit(0.3, 'in')
+    
+  )
+
+ann_text <- data.frame(date = (today_date + 30), value = 7,label = today_pretty,
+                         name = 'mean_prcp') ## today_date -30 for after July
+b+  
+  geom_text(data = ann_text,label = ann_text$label, color = 'red', size = 3)
+  
+# b +
+#   annotate('text', x=today_date, y = 0, label= today_pretty,
+#            color = 'red', size = 2.5)
+
+ggsave('figures/prcp_prob_amount.png', width = 6, height = 7, units = 'in')
+
 
 
