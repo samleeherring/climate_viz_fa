@@ -106,7 +106,7 @@ cold_weather %>%
   # filter(year < 1982 & year > 1956) thought I did sth wrong but nope, no data between these years
 
 ## checking significant outliers: only 7 months > 50cm, 16 > 30, 23 > 20, 59 > 10
-cold_months %>% 
+cold_weather %>% 
   filter(year(date) > 1982,
          mean_snwd > 0.1)
 ## There were 84 months before 1956 with avg snwd over 10mm, and 203 after 1982
@@ -134,4 +134,180 @@ ggsave('figures/aleutian_test_plot2.png', width = 5, height = 4, units = 'in')
 ## probably start with 1982 on because it has more than double the observations
 
 
+cold_40 <- cold_months %>%
+  filter(year > 1982) %>%
+  filter(mean_snwd <= 20)  
+## New DF with only monthly means from 1983 onward
+## This shows that we're missing about 5 months of data from within the range
+## minus the 13 filtered out
+cold_40 %>%
+count(month) ## looks like the missing months are well dispersed, so we good
 
+snow_labels <- c('prob_snwd' = 'Probability of snowfall',
+                   'mean_snwd' = 'Average amount of\nsnowfall by day (cm)',
+                   'mean_event' = 'Average amount of\nsnowfall by event (cm)')
+
+today_month <- month(today())
+today_day <- day(today())
+today_date <- ymd(glue("2024-{today_month}-{today_day}"))
+today_pretty <- today_date %>%
+  format.Date(format = '%B %dth %Y')
+
+c %>%  filter(if_any(value, is.na)) %>% tail()
+
+c %>% filter(month > 5 & month < 11)
+
+cold_weather %>% filter(month(date) > 5 & month(date) < 11)
+mutate_all(~replace(., is.na(.), 0))
+
+c <- cold_weather %>%
+  select(date, snwd) %>%
+  filter(year(date) > 1982) %>%
+  mutate(year = year(date),
+         month = month(date),
+         day = day(date)) %>%
+  drop_na(snwd) %>%
+  group_by(month, day) %>%
+  summarise(prob_snwd = (mean(snwd > 0)*100)/10,
+            mean_snwd = (mean(snwd))/10,
+            mean_event = (mean(snwd[snwd > 0]))/10,
+            .groups = 'drop') %>%
+  mutate(date = ymd(glue('2024-{month}-{day}'))) %>%
+  pivot_longer(cols = c(prob_snwd, mean_snwd, mean_event)) %>%
+  mutate(name = factor(name, levels = c('prob_snwd', 'mean_snwd', 'mean_event'))) %>%
+
+ggplot(aes(x = date, y = value, label = today_date)) +
+  geom_line() +
+  # geom_hline(yintercept = 0) +
+  geom_vline(color = 'red', xintercept = today_date, linewidth = 1) +
+  geom_smooth(se=FALSE) +
+  facet_wrap(~name, ncol = 1, scales = 'free_y', strip.position = 'left', 
+             labeller = labeller(name = snow_labels)) +
+  scale_y_continuous(limits = c(0, NA), expand = c(0,0)) + 
+  scale_x_date(date_breaks = '2 months',
+               date_labels = '%B', expand = c(0,0)) +
+  coord_cartesian(clip = 'off') +
+  
+  labs(
+    x = NULL,
+    y = NULL,
+    title = "Probability of avg snowfall in Unalaska, Aleutian Islands (1983 - 2024)",
+    subtitle = "Excludes 13 significant outliers of averages above 20cm"
+  ) +
+  
+  theme(
+    plot.title = element_text(),
+    plot.subtitle = element_text(color = 'grey'),
+    strip.placement = 'outside',
+    strip.background = element_blank(),
+    panel.background = element_blank(),
+    panel.grid = element_blank(),
+    axis.line = element_line(),
+    plot.margin = margin(10,5,10,5),
+    panel.spacing = unit(0.3, 'in')
+    
+  ) 
+
+c+  
+  geom_text(data = ann_txt,label = ann_txt$label, color = 'blue', size = 3)
+## Faceted probability and averages plots don't really work when there is no snow
+
+prcp_snow <- cold_weather %>%
+  filter(year(date) > 1982) %>%
+  drop_na() %>%
+  filter(snwd > 0) %>%
+  mutate(year = year(date)) %>%
+  group_by(year) %>%
+  summarise(prcp = sum(prcp),
+            snow = sum(snwd)) %>%
+  filter(year != 1983 & year != 2024)
+  
+prcp_snow %>%
+  pivot_longer(-year) %>%
+  ggplot(aes(x = year, y = value)) +
+  geom_line() +
+  facet_wrap(~name, ncol = 1, scales = 'free_y')
+
+prcp_snow %>%
+  ggplot(aes(x=prcp, y=snow, color = year)) +
+  geom_point()
+  
+# Pearson's product-moment correlation
+cor.test(prcp_snow$prcp, prcp_snow$snow)
+# t = 6.3493, df = 38, p-value = 1.891e-07
+# alternative hypothesis: true correlation is not equal to 0
+# 95 percent confidence interval:
+#  0.5228169 0.8410178
+# sample estimates:
+#   cor:
+# 0.7174764 
+
+prcp_snow_daily <- cold_weather %>%
+  filter(year(date) > 1982) %>%
+  drop_na() %>%
+  filter(snwd > 0 & tmax <= 0) %>%
+  filter(prcp < 60) %>%
+  mutate(year = year(date),
+         snow = snwd/10) %>%
+  filter(year != 1983 & year != 2024) 
+
+snow_model <- lm(snwd~tmax*prcp+0, data = prcp_snow_daily)
+summary(snow_model)
+
+predict(snow_model, prcp_snow_daily)
+
+prcp_snow_daily %>% 
+  mutate(predicted = predict(snow_model, prcp_snow_daily)) %>%
+  ggplot(aes(x=prcp, y=snwd)) +
+  geom_point(color = 'lightgrey') +
+  geom_smooth(aes(color = 'simple'), formula = 'y~x+0', method = 'lm', se = FALSE) +
+  # geom_abline(intercept = 0, slope = 10, size = 1) +
+  geom_segment(x=0, y=0,
+               xend = max(prcp_snow_daily$prcp),
+               yend = (max(prcp_snow_daily$prcp))*10, size = 0.5,
+               aes(color = 'rule_of_thumb')) +
+  geom_smooth(aes(y=predicted, color = 'advanced'), se = FALSE)+
+  
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0), limits = c(0, 1500), breaks = seq(0, 1500, 250)) +
+  scale_color_manual(name = NULL,
+                     breaks = c('rule_of_thumb', 'simple', 'advanced'),
+                     labels = c('10:1 rule of thumb',
+                                'Simple model',
+                                'Advanced model'),
+                     values = c('black', 'dodgerblue', 'red')) +
+  
+  labs(
+    x = 'Total daily precipitation (mm)',
+    y = 'Total daily snowfall (mm)',
+    title = 'Model of ratio between precipitation & snowfall in the\nAleutian Islands (1984 - 2023)'
+  ) +
+  theme_classic()
+
+ggsave('figures/aleutian_model_snow_ratio.png', width = 6, height = 4, units = 'in')
+
+# Pearson's product-moment correlation
+cor.test(prcp_snow_daily$prcp, prcp_snow_daily$snwd)
+# t = 4.2149, df = 546, p-value = 2.924e-05
+# alternative hypothesis: true correlation is not equal to 0
+# 95 percent confidence interval:
+#   0.0951738 0.2574486
+# sample estimates:
+#   cor 
+# 0.1775176 
+  
+
+
+
+
+
+  ggplot(aes(x = date, y = mean_snwd)) +
+  geom_line() +
+  geom_smooth(se=TRUE, method = 'gam') +
+  scale_x_date(expand=c(0,0)) +
+  labs(
+    x = NULL,
+    y = 'Average monthly snowfall (cm)',
+    title = "Observations of monthly avg snowfall above 10mm in\nUnalaska, Aleutian Islands (1983 - 2024)",
+    subtitle = "Excludes 13 significant outliers of averages above 20cm"
+  ) 
