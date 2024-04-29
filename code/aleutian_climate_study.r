@@ -207,7 +207,8 @@ ggplot(aes(x = date, y = value, label = today_date)) +
     panel.spacing = unit(0.3, 'in')
     
   ) 
-
+ann_txt <- data.frame(date = (today_date + 30), value = 7,label = today_pretty,
+                       name = 'mean_snwd')
 c+  
   geom_text(data = ann_txt,label = ann_txt$label, color = 'blue', size = 3)
 ## Faceted probability and averages plots don't really work when there is no snow
