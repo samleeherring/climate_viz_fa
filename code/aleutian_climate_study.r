@@ -41,8 +41,9 @@ new_cold_station <- inventory %>%
 ## Let's hope this one has good data
 
 ## Found USC00502587 only 2.5km from Unalaska that goes from 1915 until now
+## https://www.ncei.noaa.gov/pub/data/ghcn/daily/by_station/USC00502587.csv.gz
 
-station_daily <- glue("https://www.ncei.noaa.gov/pub/data/ghcn/daily/by_station/{new_cold_station}.csv.gz")
+station_daily <- 'https://www.ncei.noaa.gov/pub/data/ghcn/daily/by_station/USC00502587.csv.gz'
 
 cold_weather <- read_csv(station_daily,
                           col_names = c("station_id", "date", "element", "value", "m_flag", 
@@ -53,7 +54,7 @@ cold_weather <- read_csv(station_daily,
   mutate(date = ymd(date),
          TMAX = TMAX /10,
          TMIN = TMIN /10,
-         PRCP = PRCP/10) %>%
+         PRCP = PRCP/10) %>% 
   rename_all(tolower)
 
 ## Time to verify some data baby YEAHHHH
@@ -86,7 +87,7 @@ cold_months <- cold_weather %>%
   #          summarise(mean_prc = mean(prcp)) 
  
 cold_weather %>%
- filter(if_any(snwd, is.na)) ## hmmm 9,000 out of 26,000 are NA values...
+ filter(if_any(snwd, is.na)) %>% filter(snwd != 0) ## hmmm 9,000 out of 26,000 are NA values...
 
 cold_weather %>%
   ggplot(aes(x = date, y = snwd, color = snwd)) +
@@ -166,7 +167,7 @@ c <- cold_weather %>%
   mutate(year = year(date),
          month = month(date),
          day = day(date)) %>%
-  drop_na(snwd) %>%
+  drop_na(snwd) %>% 
   group_by(month, day) %>%
   summarise(prob_snwd = (mean(snwd > 0)*100)/10,
             mean_snwd = (mean(snwd))/10,
@@ -211,6 +212,8 @@ ann_txt <- data.frame(date = (today_date + 30), value = 7,label = today_pretty,
                        name = 'mean_snwd')
 c+  
   geom_text(data = ann_txt,label = ann_txt$label, color = 'blue', size = 3)
+
+ggsave('figures/snow_prob_amount.png', width = 6, height = 5, units = 'in')
 ## Faceted probability and averages plots don't really work when there is no snow
 
 prcp_snow <- cold_weather %>%
@@ -287,6 +290,7 @@ prcp_snow_daily %>%
 
 ggsave('figures/aleutian_model_snow_ratio.png', width = 6, height = 4, units = 'in')
 
+
 # Pearson's product-moment correlation
 cor.test(prcp_snow_daily$prcp, prcp_snow_daily$snwd)
 # t = 4.2149, df = 546, p-value = 2.924e-05
@@ -296,19 +300,67 @@ cor.test(prcp_snow_daily$prcp, prcp_snow_daily$snwd)
 # sample estimates:
 #   cor 
 # 0.1775176 
-  
 
 
+snow_data <- cold_weather %>%
+  select(date, snwd) %>%
+  drop_na(snwd) %>%
+  mutate(cal_year = year(date),
+         month = month(date),
+         snow_year = if_else(date < ymd(glue('{cal_year}-07-01')),
+                             cal_year - 1,
+                             cal_year)) %>% 
+  select(month, snow_year, snwd) %>%
+  filter(snow_year != 1917)
+
+snow_data %>%
+  select(snow_year, snwd) %>%
+  filter(snow_year > 1952 & snow_year < 1980) %>% tail(n=20)
+## BRUH. What is with these 30y gaps in like every data set?? Checking parent DF
+
+cold_weather %>%
+  select(date, snwd) %>%
+  filter(year(date) > 1952 & year(date) < 1980) %>% tail(n=20)
+## Ugh yup, wasn't a calculation error, there's just no data from the 50s-80s
+
+snow_data %>%
+  group_by(snow_year) %>%
+  summarise(total_snow = sum(snwd)) %>%
+  ggplot(aes(x = snow_year, y = total_snow)) +
+  geom_line()
 
 
+dummy_df <- crossing(snow_year = 1918:2023,
+                     month = 1:12) %>%
+  mutate(dummy = 0)
 
-  ggplot(aes(x = date, y = mean_snwd)) +
-  geom_line() +
-  geom_smooth(se=TRUE, method = 'gam') +
-  scale_x_date(expand=c(0,0)) +
-  labs(
-    x = NULL,
-    y = 'Average monthly snowfall (cm)',
-    title = "Observations of monthly avg snowfall above 10mm in\nUnalaska, Aleutian Islands (1983 - 2024)",
-    subtitle = "Excludes 13 significant outliers of averages above 20cm"
-  ) 
+snow_data %>% 
+  right_join(., dummy_df, by = c('snow_year', 'month')) %>%
+  mutate(snow = if_else(is.na(snwd), dummy, snwd)) %>%
+  group_by(snow_year, month) %>%
+  summarise(sum_snow = sum(snow), .groups = 'drop') %>%
+  mutate(month = factor(month, levels = c(8:12, 1:7)),
+         is_this_year = 2023 == snow_year) %>% 
+  filter(sum_snow < 15000) %>% ## removes 3 extreme outlier months
+  ggplot(aes(x=month, y=sum_snow, group = snow_year, color = is_this_year,
+             size = is_this_year)) +
+  geom_line(show.legend = FALSE) +
+  scale_color_manual(name = NULL,
+                     breaks = c(T, F),
+                     values = c("dodgerblue", "grey")) +
+  scale_size_manual(name = NULL,
+                    breaks = c(T, F),
+                    values = c(1.5, 0.6)) +
+  scale_x_discrete(breaks = c(9, 11, 1, 3, 5),
+                   labels = months.abb[c(9, 11, 1, 3, 5)],
+                   expand = c(0,0)) +
+  scale_y_continuous(breaks = seq(0, 13000, 1000))
+theme(
+  panel.background = element_blank(),
+  panel.grid = element_blank(),
+  axis.line = element_line()
+)
+
+## aaaaand the data has either begun updating or been deleted from the source,
+## because every cold_weather$snwd frame is either NA or 0 (2024/29/04)
+
