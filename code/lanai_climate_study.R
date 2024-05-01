@@ -25,7 +25,7 @@ temp_vs_prcp <- lanai_climate %>%
          day = day(date)) %>%
   group_by(year, month) %>%
   summarise(avg_temp = (mean(tmax)+mean(tmin))/2,
-            yr_prcp = mean(prcp)/10,
+            yr_prcp = mean(prcp),
             .groups = 'drop') %>%
   pivot_longer(cols = c(avg_temp, yr_prcp)) %>%
   mutate(name = factor(name, levels = c('avg_temp', 'yr_prcp')))
@@ -50,7 +50,7 @@ ggplot(aes(x = year, y = value)) +
     title = glue("Average <span style = 'color: #E32636'>temperature</span>
                  vs average <span style = 'color: #00ACAB'>precipitation</span>
                  by month on Lana'i, HI (1954 - 2024)"),
-    subtitle = "Excludes 3 significant outliers of average precipitation over 1.3cm",
+    subtitle = "Excludes 3 significant outliers of average precipitation over 13cm",
     tag = 'Data from NCEI NOAA'
   ) +
   
