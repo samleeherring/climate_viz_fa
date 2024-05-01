@@ -21,7 +21,7 @@ my_station <- inventory %>%
          #converting to radians
          d = 6371 * acos((sin(lat_r)*sin(my_lat))+cos(lat_r)*cos(my_lat)
                   *cos(my_lon-lon_r))) %>%
-  filter(start < 1960 & end > 2020) %>%
+  filter(start < 1960 & end > 2020) %>% 
   # arrange(d) %>%
   # print(n=20)
   ## checking more stations to find the best fit
@@ -42,12 +42,33 @@ local_weather <- read_csv(station_daily,
                                     "q_flag", "s_flag", "time")) %>%
   select(date, element, value) %>%
   pivot_wider(names_from = "element", values_from = "value") %>%
-  select(date, TMAX, TMIN, PRCP, SNWD) %>%
+  select(date, TMAX, TMIN, PRCP) %>%
   mutate(date = ymd(date),
          TMAX = TMAX /10,
          TMIN = TMIN /10,
-         PRCP = PRCP/10) %>%
+         PRCP = PRCP /10) %>%
   rename_all(tolower)
+
+## Searched for a station that had more temperature data, found this one 26km away
+## ... Which, as it turns out, is on the island of Lana'i... close enough
+alt_station <- 'https://www.ncei.noaa.gov/pub/data/ghcn/daily/by_station/USW00022516.csv.gz'
+
+alt_local_weather <- read_csv(alt_station,
+                          col_names = c("station_id", "date", "element", "value", "m_flag", 
+                                        "q_flag", "s_flag", "time")) %>%
+  select(date, element, value) %>%
+  pivot_wider(names_from = "element", values_from = "value") %>%
+  select(date, TMAX, TMIN, PRCP) %>%
+  mutate(date = ymd(date),
+         TMAX = TMAX /10,
+         TMIN = TMIN /10,
+         PRCP = PRCP /10) %>%
+  rename_all(tolower)
+
+alt_local_weather_scaled <- alt_local_weather  %>%
+  mutate(tmax = if_else(tmax == 0, NA_real_, tmax)) %>%
+  drop_na() 
+
 
 local_weather_scaled <- local_weather  %>%
   mutate(tmax = if_else(tmax == 0, NA_real_, tmax)) %>%
@@ -132,8 +153,8 @@ ggsave("figures/local_weather.png", width=7, height=4, units = "in")
 ## average amount of expected prcp if there is to be any
 
 pretty_labels <- c('prob_prcp' = 'Probability of precipitation',
-                   'mean_prcp' = 'Average amount of\nprecipitation by day (mm)',
-                   'mean_event' = 'Average amount of\nprecipitation by event (mm)')
+                   'mean_prcp' = 'Average amount of\nprecipitation by day (cm)',
+                   'mean_event' = 'Average amount of\nprecipitation by event (cm)')
 
 today_month <- month(today())
 today_day <- day(today())

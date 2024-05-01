@@ -6,17 +6,6 @@ library(scales)
 
 
 ## New plot analyzing precipitation trends (bc that data actually exists)
-this_year <- year(today())
-this_month <- month(today(),label = TRUE, abbr = FALSE)
-this_day <- ordinal(day(today()))
-today <- today()
-
-annotation <- west_maui_prcp %>%
-  slice_max(year(date)) %>%
-  slice_max(month(date)) %>%
-  slice_max(day(date)) 
-
-
 west_maui_prcp <- local_weather %>%
   select(date, prcp) %>%
   mutate(year = year(date),
@@ -30,11 +19,20 @@ west_maui_prcp <- local_weather %>%
   ungroup() %>%
   mutate(new_date = ymd(glue("2024-{month}-{day}"))) 
 
-  
 west_maui_prcp %>%
   filter(year == 2024 & month(date) == 2) %>%
   arrange(-day(date)) %>%
   print(n=20)
+
+this_year <- year(today())
+this_month <- month(today(),label = TRUE, abbr = FALSE)
+this_day <- ordinal(day(today()))
+today <- today()
+
+annotation <- west_maui_prcp %>%
+  slice_max(year(date)) %>%
+  slice_max(month(date)) %>%
+  slice_max(day(date)) 
 
 ## This plot has stopped working because cum_sum(prcp) stopped calculating
 ## Figured it out: prcp stopped being recorded causing cum_prcp to return NA
@@ -113,3 +111,4 @@ ggsave("figures/cumulative_prcp.png", width = 6, height = 5, units = "in")
 
 ## Gonna try some more plotting exercises since I went through all the trouble
 ## of finding this data
+
