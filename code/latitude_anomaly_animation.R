@@ -136,6 +136,42 @@ anim_save("figures/latitude_anomaly_animation.gif")
 
 
 
+parab <- send_it %>%
+  ggplot(aes(x = t_diff, y = factor(zone_position, levels = seq(8, 1, by = -1)),
+             fill = stat(x))) +
+  geom_density_ridges_gradient(bandwidth = 0.3, scale = 1,
+                      linewidth = 0.2, color = "white") +
+  # geom_label(aes(label=year)) +
+  scale_fill_viridis_c(option = 'C', guide = 'none', limits = c(-3,3)) +
+  # coord_cartesian(xlim=c(-5, 5)) +
+  scale_x_continuous(expand = c(0, 0), breaks = seq(-3, 3, 1)) +
+  scale_y_discrete(labels = rev(bands), breaks = 1:8) +
+  
+  labs(
+    y = NULL,
+    x = "Temperature Anomaly (\u00B0C)",
+    title = "Land Temperature Anomaly Distribution (1880-2024)"
+  ) +
+  
+  theme(
+    text = element_text(color = "white"),
+    plot.title.position = 'panel',
+    plot.background = element_rect(fill = "black", color = 'black'),
+    panel.background = element_rect(fill = "black"),
+    panel.grid = element_blank(),
+    axis.text = element_text(color="white"),
+    axis.ticks = element_line(color="white"),
+    axis.ticks.y = element_blank(),
+    axis.line.x = element_line(color="white"),
+    axis.line.y = element_blank()
+  ) +
+  transition_manual(frames = frame) 
+
+animate(parab)
+
+anim_save("figures/latitude_anomaly_ridge_animation_1.gif")
+
+
 ## Here's all of my failed attempts to get the animation how I wanted lol
 
 ## gganimate transitions & behaviors, literally never even got to see them work
