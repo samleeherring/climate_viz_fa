@@ -165,7 +165,27 @@ parab <- send_it %>%
     axis.line.x = element_line(color="white"),
     axis.line.y = element_blank()
   ) +
-  transition_manual(frames = frame) 
+  transition_manual(frames = year_number, cumulative = FALSE) 
+
+label_df_2 <- send_it %>%
+  select(year, year_number) %>%
+  ungroup() 
+
+label_df_2 %>%
+  slice_max(frame)
+## checking and comparing frame compliance in data frame
+
+label_text_2 <- data.frame(t_diff = 3.5, zone_position = 4.5,
+                         label = label_df_2$year, frame = label_df_2$year_number)
+
+label_text_2 %>%
+  ggplot(aes(x=t_diff, y=zone_position, label=label)) +
+  geom_text(size = 30) +
+  transition_manual(frames = frame, cumulative = FALSE)
+
+parab +
+  geom_text(data = label_text_2, aes(x=3.5, y=4.5, label = label, color = 'white',
+                                   size = 30), show.legend = FALSE)
 
 animate(parab)
 

@@ -4,6 +4,7 @@ library(ncdf4)
 library(data.table)
 library(lubridate)
 library(ggridges)
+library(gganimate)
 
 ## Run only once then comment out
 # url <- "https://data.giss.nasa.gov/pub/gistemp/gistemp250_GHCNv4.nc.gz"
@@ -140,7 +141,7 @@ plot_dat <- anom_ridges %>%
 parabs <- plot_dat %>%
   ggplot(aes(x = t_avg, y = factor(zone_pstn, levels = rev(c(2,5,3,7,8,4,6,1))),
              fill = stat(x), group = zone_pstn)) +
-  geom_density_ridges_gradient(bandwidth = 0.4, scale = 1,
+  geom_density_ridges_gradient(bandwidth = 0.4, scale = 0.8,
                                linewidth = 0.2, color = "white") +
   # geom_label(aes(label=year)) +
   scale_fill_viridis_c(option = 'C', guide = 'none', limits = c(-3,4)) +
@@ -173,15 +174,28 @@ label_df <- plot_dat %>%
   select(year, frame, zone_pstn) %>%
   ungroup() 
 
-label_text <- data.frame(t_avg = 3.5, zone_pstn = 7,label = label_df$year)
+label_df %>%
+  filter(year == 1950,
+         frame == 1) 
+## checking and comparing frame compliance in data frame
+
+label_text <- data.frame(t_avg = 3.5, zone_pstn = 7, label = label_df$year,
+                         frame = label_df$frame)
+
+label_text %>%
+  ggplot(aes(x=t_avg, y=zone_pstn, label=label)) +
+  geom_text() +
+  transition_manual(frames = frame, cumulative = FALSE)
 
 parabs +
-  geom_label(data = label_text, aes(x=3.5, y=7, label = label))
+  geom_text(data = label_text, aes(x=3.5, y=4.5, label = label, color = 'white',
+                                   size = 30), show.legend = FALSE)
 ## Gonna try and get this label to work later on
+## LET'S GOOOOOO I GOT IT TO WORK!!
 
 animate(parabs)
          
-anim_save("figures/latitude_anomaly_ridge_animation_2.gif")
+ anim_save("figures/latitude_anomaly_ridge_animation_2.gif")
 
 # lat_bands <- rev(c("64N-90N", "44N-64N", "24N-44N", "EQU-24N",
 #                "24S-EQU", "44S-24S", "64S-44S", "90S-64S"))
